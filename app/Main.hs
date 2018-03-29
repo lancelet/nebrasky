@@ -73,13 +73,16 @@ readLine line =
         lookup :: Int -> Maybe Float
         lookup i = items V.!? i >>= toFloat
 
+        lookupWithDefault :: Int -> Float -> Maybe Float
+        lookupWithDefault i x = Just (fromMaybe x (lookup i))
+
         maybeStar :: Maybe Star
         maybeStar =
             Star
             <$> lookup 7
             <*> lookup 8
             <*> lookup 13
-            <*> pure (fromMaybe 0 (lookup 16))
+            <*> lookupWithDefault 16 0
     in
         case maybeStar of
             Nothing   -> Left (FailedStarRead line)
