@@ -87,3 +87,10 @@ readLine line =
         case maybeStar of
             Nothing   -> Left (FailedStarRead line)
             Just star -> Right star
+
+
+{-
+Kensler A (2013) Correlated Multi-Jittered Sampling. Pixar Technical Memo 13-01.
+
+https://graphics.pixar.com/library/MultiJitteredSampling/paper.pdf
+-}
