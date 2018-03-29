@@ -15,8 +15,8 @@ main :: IO ()
 main = do
     putStrLn "Hello World"
     inStars <- readStarsFile "data/HYG-Database/hygdata_v3.csv"
-    putStrLn $ concat [ "Number of Stars: ", show . length . inputStarsStars $ inStars ]
-    putStrLn $ concat [ "Number Failed:   ", show . inputStarsFailedCount $ inStars ]
+    putStrLn $ concat [ "Number of Stars: ", show . length . inputStarsStars  $ inStars ]
+    putStrLn $ concat [ "Number Failed:   ", show . length . inputStarsFailed $ inStars ]
 
 
 data Star
@@ -30,28 +30,30 @@ data Star
 
 data InputStars
     = InputStars
-    { inputStarsStars       :: [Star]
-    , inputStarsFailedCount :: Int
+    { inputStarsStars  :: [Star]
+    , inputStarsFailed :: [FailedStarRead]
     }
+
+newtype FailedStarRead = FailedStarRead Text
     
 
-addInputStar :: InputStars -> Maybe Star -> InputStars
-addInputStar (InputStars stars count) maybeStar =
-    case maybeStar of
-        Just star -> InputStars (star : stars)  count
-        Nothing   -> InputStars         stars  (count + 1)
+addInputStar :: InputStars -> Either FailedStarRead Star -> InputStars
+addInputStar (InputStars stars failed) eitherStar =
+    case eitherStar of
+        Right star   -> InputStars (star : stars)            failed
+        Left notRead -> InputStars         stars  (notRead : failed)
     
 
 readStarsFile :: FilePath -> IO InputStars
 readStarsFile filePath = withFile filePath ReadMode $ \handle -> do
-    S.foldl addInputStar (InputStars [] 0) id
+    S.foldl addInputStar (InputStars [] []) id
     . S.serially
     . fmap (readLine . T.pack)
     . S.fromHandle
     $ handle
 
 
-readLine :: Text -> Maybe Star
+readLine :: Text -> Either FailedStarRead Star
 readLine line =
     let
         items :: V.Vector Text
@@ -65,18 +67,15 @@ readLine line =
 
         lookup :: Int -> Maybe Float
         lookup i = items V.!? i >>= toFloat
+    
+        maybeStar :: Maybe Star
+        maybeStar =
+            Star
+            <$> lookup 7
+            <*> lookup 8
+            <*> lookup 13
+            <*> lookup 16
     in
-        Star
-        <$> lookup 7
-        <*> lookup 8
-        <*> lookup 13
-        <*> lookup 16
-
-
-
--- readStream :: (S.Streaming t) => t m Text ->
-
-{-
-toTextStream :: S.Streaming t => t m String -> t m Text
-toTextStream = fmap T.pack
--}
+        case maybeStar of
+            Nothing   -> Left (FailedStarRead line)
+            Just star -> Right star
