@@ -1,17 +1,24 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ExplicitForAll      #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import           Control.Monad          (forM_)
-import           Control.Monad.IO.Class (MonadIO)
-import           Data.Maybe             (fromMaybe)
-import           Data.Text              (Text)
-import qualified Data.Text              as T
-import qualified Data.Text.Read         as T
-import qualified Data.Vector            as V
-import           GHC.Float              (double2Float)
-import qualified Streamly               as S
-import qualified Streamly.Prelude       as S
-import           System.IO              (IOMode (ReadMode), withFile)
+import           Control.Monad                   (forM_)
+import           Control.Monad.Primitive         (PrimMonad, PrimState)
+import           Control.Monad.ST                (runST)
+import           Data.Maybe                      (fromMaybe)
+import           Data.Text                       (Text)
+import qualified Data.Text                       as T
+import qualified Data.Text.Read                  as T
+import qualified Data.Vector                     as V
+import qualified Data.Vector.Unboxed             as U
+import           GHC.Float                       (double2Float)
+import           Linear.V2                       (V2 (V2))
+import qualified Streamly                        as S
+import qualified Streamly.Prelude                as S
+import           System.IO                       (IOMode (ReadMode), withFile)
+import qualified System.Random.MWC               as MWC
+import qualified System.Random.MWC.Distributions as MWC
 
 main :: IO ()
 main = do
@@ -90,7 +97,53 @@ readLine line =
 
 
 {-
+TODO:
+
 Kensler A (2013) Correlated Multi-Jittered Sampling. Pixar Technical Memo 13-01.
 
 https://graphics.pixar.com/library/MultiJitteredSampling/paper.pdf
 -}
+
+type NSamplesX = Int
+type NSamplesY = Int
+
+pixelSamples :: MWC.Seed -> NSamplesX -> NSamplesY -> U.Vector (V2 Float)
+pixelSamples seed nx ny = runST $ do
+    gen <- MWC.restore seed
+    pixelSamplesM gen nx ny
+
+pixelSamplesM
+    :: ( Monad m
+       , PrimMonad m
+       )
+    => MWC.Gen (PrimState m)
+    -> NSamplesX
+    -> NSamplesY
+    -> m (U.Vector (V2 Float))
+pixelSamplesM gen nx ny = do
+    xs :: U.Vector Int <- MWC.uniformPermutation nx gen
+    ys :: U.Vector Int <- MWC.uniformPermutation ny gen
+    U.generateM (nx * ny) $ \idx ->
+        let
+            (xi, yi) = quotRem idx nx
+            xi'      = xs U.! xi
+            yi'      = ys U.! yi
+        in
+            nRook gen nx ny (xi', yi')
+
+nRook
+    :: ( Monad m
+       , PrimMonad m
+       )
+    => MWC.Gen (PrimState m)
+    -> NSamplesX
+    -> NSamplesY
+    -> (Int, Int)
+    -> m (V2 Float)
+nRook gen nx ny (xx, yy) = do
+    x :: Float <- MWC.uniform gen
+    y :: Float <- MWC.uniform gen
+    let
+        x' = fromIntegral xx + x / fromIntegral nx
+        y' = fromIntegral yy + y / fromIntegral ny
+    pure (V2 x' y')
