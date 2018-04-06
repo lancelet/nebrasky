@@ -3,11 +3,30 @@
 {-# LANGUAGE TypeFamilies              #-}
 module Nebrasky.Sampler where
 
-import Data.Monoid (mconcat)
+import           Data.Fixed                  (mod')
+import           Data.Monoid                 (mconcat)
 import           Diagrams.Backend.Rasterific (B, renderRasterific)
-import           Diagrams.Prelude            (Diagram, (#))
+import           Diagrams.Prelude            (Diagram, ( # ))
 import qualified Diagrams.Prelude            as D
 import           Linear.V2                   (V2 (V2))
+
+-- | Test image for antialiasing.
+--
+-- Taken from a Python version here:
+-- https://gist.github.com/Reedbeta/893b63390160e33ddb3c#file-antialias-test-py-L36-L44
+testImage
+    :: Float -- ^ minimum period; 2.0e-5 is a good value
+    -> Float -- ^ maximum period; 0.2 is a good value
+    -> Float -- ^ x value; ideally in the range [0,1]
+    -> Float -- ^ y value; ideally in the range [0,1]
+    -> Float -- ^ computed image value
+testImage minPeriod maxPeriod x y = round' ((x / period y) `mod'` 1.0)
+  where
+    period :: Float -> Float
+    period q = minPeriod + (maxPeriod - minPeriod) * (q ^^ 2)
+
+    round' :: Float -> Float
+    round' = fromInteger . round
 
 --- Diagrams
 
