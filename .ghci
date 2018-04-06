@@ -1,3 +1,5 @@
+:set -v1
 :set -fwarn-unused-binds -fwarn-unused-imports
 :set -isrc
--- :load Main
+-- Not sure if this is required, or should be required
+:load Main Nebrasky.Sampler
