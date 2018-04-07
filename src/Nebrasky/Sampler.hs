@@ -3,12 +3,40 @@
 {-# LANGUAGE TypeFamilies              #-}
 module Nebrasky.Sampler where
 
+import           Codec.Picture               (DynamicImage (ImageRGB8), Image,
+                                              PixelRGB8 (PixelRGB8),
+                                              generateImage, savePngImage)
 import           Data.Fixed                  (mod')
 import           Data.Monoid                 (mconcat)
 import           Diagrams.Backend.Rasterific (B, renderRasterific)
 import           Diagrams.Prelude            (Diagram, ( # ))
 import qualified Diagrams.Prelude            as D
 import           Linear.V2                   (V2 (V2))
+
+saveTestImageNoAA :: IO ()
+saveTestImageNoAA = do
+    let
+        width  = 256
+        height = 256
+        imageFn (V2 x y) = PixelRGB8 r r r
+          where
+            r = round (255.0 * testImage 2.0e-5 0.2 x y)
+        image = rasteriseImageNoAA width height imageFn
+    savePngImage "testImage-NoAA.png" (ImageRGB8 image)
+
+rasteriseImageNoAA
+    :: Int                       -- ^ width of raster (number of pixels)
+    -> Int                       -- ^ height of raster (number of pixels)
+    -> (V2 Float -> PixelRGB8)   -- ^ image sampling function
+    -> Image PixelRGB8           -- ^ created image
+rasteriseImageNoAA width height image = generateImage image' width height
+  where
+    image' :: Int -> Int -> PixelRGB8
+    image' x y = image (V2 x' y')
+      where
+        x' = (fromIntegral x + 0.5) / fromIntegral width
+        y' = (fromIntegral y + 0.5) / fromIntegral width
+
 
 -- | Test image for antialiasing.
 --
